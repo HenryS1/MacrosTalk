@@ -22,7 +22,7 @@
     '(defun add1 (x) (+ x 1)))
   #+end_src
 
-* Clojure threading macros
+* Clojure has threading syntax
 
   Passing the results from one function to the next can be cumbersome
 
@@ -30,7 +30,7 @@
   (fun3 (fun2 (fun1 1) 2 3) 4 5)
   #+end_src
 
-  Clojure uses threading syntax for this, but Lisp doesn't
+  Clojure uses threading syntax for this, but Lisp doesn't have it
   
   #+begin_src clojure
   (<- (fun1 1) (fun2 2 3) (fun3 4 5))
@@ -43,15 +43,16 @@
   #+begin_src lisp
     (defun thread-first (exps)
       (reduce (lambda (a b) (cons (car b) (cons a (cdr b)))) exps))
-    CL-USER> (thread-last '((fun1 1) (fun2 2 3) (fun3 4 5)))
-    (FUN3 (FUN2 (FUN1 1) 2 3) 4 5)
+
+    ;CL-USER> (thread-last '((fun1 1) (fun2 2 3) (fun3 4 5)))
+    ;(FUN3 (FUN2 (FUN1 1) 2 3) 4 5)
   #+end_src
 
   Then define the macro
 
   #+begin_src lisp
     (defmacro -> (&rest exps)
-      (nest-evaluation exps))
+      (thread-first exps))
   #+end_src
 
 * Threading the last argument
@@ -69,5 +70,49 @@
   #+end_src
 
   #+begin_src lisp
-  
+    (defmacro ->> (&rest exps)
+      (reduce (lambda (a b) (append b (list a))) exps))
   #+end_src
+
+* Threading to arbitrary positions
+
+  We may want to pass results to arbitrary positions. 
+
+  #+begin_src lisp
+    (-?> (fun1 1) (fun2 2 ? ? 3) (fun3 ? 4 ? 5))
+  #+end_src
+
+  Should be the same as 
+  
+  #+begin_src lisp
+    (let ((res2 (let ((res1 (fun1 1)))
+                  (fun2 2 res1 res1 3))))
+      (fun3 res2 4 res2 5))
+  #+end_src
+
+  We need the result bindings to be unique symbols
+
+* Generating symbols
+
+  Lisp does this with the ~gensym~ function. Define a helper function
+  for the macro.
+
+  #+begin_src lisp
+    (defun bind-subst (in-exp subst-exp)
+      (let ((res (gensym)))
+        `(let ((,res ,in-exp))
+           ,(subst res '? subst-exp))))
+  #+end_src
+
+  Now define the macro 
+
+  #+begin_src lisp
+    (defmacro -?> (&rest exps)
+      (reduce #'bind-subst exps))
+    ; CL-USER> (macroexpand '(-?> (fun1 1) (fun2 2 ? ? 3) (fun3 ? 4 ? 5)))
+    ; (LET ((#:G526
+    ;        (LET ((#:G525 (FUN1 1)))
+    ;          (FUN2 2 #:G525 #:G525 3))))
+    ;   (FUN3 #:G526 4 #:G526 5))    
+  #+end_src
+
