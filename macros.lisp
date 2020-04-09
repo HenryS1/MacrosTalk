@@ -23,7 +23,14 @@
                      ((consp e)
                       (let ((args (rec (car e) acc)))
                         (rec (cdr e) args)))
-                     (t acc))))
+                     (t (if (> (length acc) 1)
+                            (handler-case (sort acc (lambda (a b) (< (parse-integer 
+                                                         (subseq (symbol-name a) 1))
+                                                        (parse-integer
+                                                         (subseq (symbol-name b) 1)))))
+                              (condition () 
+                                (error "Argument names must be percentage followed by a number")))
+                            acc)))))
       (rec exp nil)))
 
 (defmacro expand-lambda (exp)
