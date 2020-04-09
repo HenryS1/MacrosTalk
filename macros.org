@@ -1,3 +1,4 @@
+#+options: num:nil toc:nil
 #+TITLE:  Useful Lisp macros
 #+AUTHOR: Henry Steere
 
@@ -22,7 +23,29 @@
     '(defun add1 (x) (+ x 1)))
   #+end_src
 
-* Clojure has threading syntax
+* Some useful macros
+
+  Threading macros let you pass arguments easily
+
+  #+begin_src lisp
+    (<- val (fun1 a) (fun2 b) (fun3 c))
+  #+end_src
+
+  Anaphora let you refer to previous expressions concisely
+
+  #+begin_src lisp
+    (aif (gethash (expression-returning-key) table)
+         (+ it 10)
+         5)
+  #+end_src
+
+  Reader macros let you add syntax
+
+  #+begin_src lisp
+  #f(+ %1 %2)
+  #+end_src
+
+* Threading macros
 
   Passing the results from one function to the next can be cumbersome
 
@@ -36,10 +59,8 @@
   (<- (fun1 1) (fun2 2 3) (fun3 4 5))
   #+end_src
 
-* Adding it to Lisp
+** Adding it to Lisp
   
-  First define a helper function
-
   #+begin_src lisp
     (defun thread-first (exps)
       (reduce (lambda (a b) (cons (car b) (cons a (cdr b)))) exps))
@@ -55,7 +76,7 @@
       (thread-first exps))
   #+end_src
 
-* Threading the last argument
+** Threading the last argument
   
   Thread last passes the result as the last argument to a function.
 
@@ -74,7 +95,7 @@
       (reduce (lambda (a b) (append b (list a))) exps))
   #+end_src
 
-* Threading to arbitrary positions
+** Threading to arbitrary positions
 
   We may want to pass results to arbitrary positions. 
 
@@ -92,7 +113,7 @@
 
   We need the result bindings to be unique symbols
 
-* Generating symbols
+** Generating symbols
 
   Lisp does this with the ~gensym~ function. Define a helper function
   for the macro.
@@ -109,10 +130,60 @@
   #+begin_src lisp
     (defmacro -?> (&rest exps)
       (reduce #'bind-subst exps))
-    ; CL-USER> (macroexpand '(-?> (fun1 1) (fun2 2 ? ? 3) (fun3 ? 4 ? 5)))
+    ; CL-USER> (macroexpand '(-?> (fun1 1) 
+    ;             (fun2 2 ? ? 3)
+    ;             (fun3 ? 4 ? 5)))
     ; (LET ((#:G526
     ;        (LET ((#:G525 (FUN1 1)))
     ;          (FUN2 2 #:G525 #:G525 3))))
     ;   (FUN3 #:G526 4 #:G526 5))    
   #+end_src
 
+* Anaphora
+
+  Use anaphors to concisely refer the result of previous expressions
+
+  #+begin_src lisp
+    (aif (gethash key table)
+         (use-value it)
+         (use-another-value 5))
+  #+end_src
+
+  ~it~ is the anaphor here.
+
+  Most control structures have corresponding anaphora: ~aif~, ~acond~,
+  ~awhen~
+
+** Implementation
+
+   Bind the result of the expression to an injected symbol called it
+
+   #+begin_src lisp
+     (defmacro aif (exp true-branch false-branch)
+       `(let ((it ,exp))
+          (if it ,true-branch ,false-branch)))
+   #+end_src
+
+   The anaphora for other control structures are similar
+
+** Multiple evaluation of anaphora
+
+   What if you want to set a value in a hash table
+
+   #+begin_src lisp
+     (sif (gethash key table)
+          (incf it 10)
+          (setf it 0))
+   #+end_src
+
+   Use symbol anaphora with symbol-macrolet
+
+   #+begin_src lisp
+     (defmacro sif (exp true-branch false-branch)
+       `(symbol-macrolet (it ,exp)
+          (if it ,true-branch ,false-branch)))
+   #+end_src
+
+* Reader macros
+
+  Reader macros let you add syntax to Lisp
