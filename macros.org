@@ -1,10 +1,11 @@
 #+options: num:nil toc:nil
 #+TITLE:  Useful Lisp macros
 #+AUTHOR: Henry Steere
+#+REVEAL_THEME: black
 
-* A brief introduction to macros
+* Introduction to macros
 
-  This is code defining a function
+  This is code
 
   #+begin_src lisp
   (defun add1 (x) (+ x 1))
@@ -16,22 +17,22 @@
   '(defun add1 (x) (+ x 1))
   #+end_src
 
-  Macros are functions that generate code for the compiler
+  Macros generate code for the compiler
 
   #+begin_src lisp
   (defmacro define-add1 ()
     '(defun add1 (x) (+ x 1)))
   #+end_src
 
-* Some useful macros
+* Useful macros
 
-  Threading macros let you pass arguments easily
+  Threading passes arguments easily
 
   #+begin_src lisp
     (<- val (fun1 a) (fun2 b) (fun3 c))
   #+end_src
 
-  Anaphora let you refer to previous expressions concisely
+  Anaphora refer to expressions concisely
 
   #+begin_src lisp
     (aif (gethash (expression-returning-key) table)
@@ -39,46 +40,48 @@
          5)
   #+end_src
 
-  Reader macros let you add syntax
+  Reader macros add syntax
 
   #+begin_src lisp
   #f(+ %1 %2)
   #+end_src
 
-* Threading macros
+* Threading
 
-  Passing the results from one function to the next can be cumbersome
+  Passing results can be cumbersome
 
   #+begin_src lisp
   (fun3 (fun2 (fun1 1) 2 3) 4 5)
   #+end_src
 
-  Clojure uses threading syntax for this, but Lisp doesn't have it
+  Clojure uses threading
   
   #+begin_src clojure
   (<- (fun1 1) (fun2 2 3) (fun3 4 5))
   #+end_src
 
-** Adding it to Lisp
+** Add it
   
+   Transform the code with a function
+
   #+begin_src lisp
     (defun thread-first (exps)
       (reduce (lambda (a b) (cons (car b) (cons a (cdr b)))) exps))
 
-    ;CL-USER> (thread-last '((fun1 1) (fun2 2 3) (fun3 4 5)))
+    ;CL-USER> (thread-first '((fun1 1) (fun2 2 3) (fun3 4 5)))
     ;(FUN3 (FUN2 (FUN1 1) 2 3) 4 5)
   #+end_src
 
-  Then define the macro
+  Define the macro
 
   #+begin_src lisp
     (defmacro -> (&rest exps)
       (thread-first exps))
   #+end_src
 
-** Threading the last argument
+** Thread the last argument
   
-  Thread last passes the result as the last argument to a function.
+  Thread last passes the result as the last argument
 
   #+begin_src lisp
   (->> (fun1 1) (fun2 2 3) (fun3 4 5))
@@ -95,15 +98,15 @@
       (reduce (lambda (a b) (append b (list a))) exps))
   #+end_src
 
-** Threading to arbitrary positions
+** Thread arbitrary positions
 
-  We may want to pass results to arbitrary positions. 
+  We may want to pass results to arbitrary positions
 
   #+begin_src lisp
     (-?> (fun1 1) (fun2 2 ? ? 3) (fun3 ? 4 ? 5))
   #+end_src
 
-  Should be the same as 
+  should be the same as 
   
   #+begin_src lisp
     (let ((res2 (let ((res1 (fun1 1)))
@@ -111,25 +114,22 @@
       (fun3 res2 4 res2 5))
   #+end_src
 
-  We need the result bindings to be unique symbols
+** Unique symbols
 
-** Generating symbols
-
-  Lisp does this with the ~gensym~ function. Define a helper function
-  for the macro.
+  Generate unique symbols with ~gensym~
 
   #+begin_src lisp
     (defun bind-subst (in-exp subst-exp)
       (let ((res (gensym)))
         `(let ((,res ,in-exp))
            ,(subst res '? subst-exp))))
-  #+end_src
-
-  Now define the macro 
-
-  #+begin_src lisp
     (defmacro -?> (&rest exps)
       (reduce #'bind-subst exps))
+  #+end_src
+
+  Check the results
+
+  #+begin_src lisp
     ; CL-USER> (macroexpand '(-?> (fun1 1) 
     ;             (fun2 2 ? ? 3)
     ;             (fun3 ? 4 ? 5)))
@@ -141,7 +141,7 @@
 
 * Anaphora
 
-  Use anaphors to concisely refer the result of previous expressions
+  Use anaphora to concisely refer to expressions
 
   #+begin_src lisp
     (aif (gethash key table)
@@ -149,10 +149,7 @@
          (use-another-value 5))
   #+end_src
 
-  ~it~ is the anaphor here.
-
-  Most control structures have corresponding anaphora: ~aif~, ~acond~,
-  ~awhen~
+  ~it~ is the anaphor
 
 ** Implementation
 
@@ -163,8 +160,6 @@
        `(let ((it ,exp))
           (if it ,true-branch ,false-branch)))
    #+end_src
-
-   The anaphora for other control structures are similar
 
 ** Multiple evaluation of anaphora
 
@@ -180,10 +175,63 @@
 
    #+begin_src lisp
      (defmacro sif (exp true-branch false-branch)
-       `(symbol-macrolet (it ,exp)
+       `(symbol-macrolet ((it ,exp))
           (if it ,true-branch ,false-branch)))
    #+end_src
 
 * Reader macros
 
-  Reader macros let you add syntax to Lisp
+  The shorter lambda syntax
+
+  #+begin_src lisp
+    (reduce #f(- %2 %1) '(1 2 3))
+  #+end_src
+
+  should be transformed to 
+
+  #+begin_src lisp
+    (reduce (lambda (%1 %2) (- %2 %1)) '(1 2 3))
+  #+end_src
+
+** The macro
+
+   A helper macro
+
+   #+begin_src lisp
+     (defmacro expand-lambda (exp)
+       `(let ((args (find-args ,exp)))
+          `(lambda ,args ,exp)))
+   #+end_src
+
+   The reader macro
+
+   #+begin_src lisp
+     (defun |#f-reader| (stream subchar arg)
+       (declare (ignore subchar arg))
+       (let ((exp (read stream)))
+         (expand-lambda exp)))
+
+     (set-dispatch-macro-character #\# #\f #'|#f-reader|)
+   #+end_src
+
+** More reader macros
+
+   Function annotations
+
+   #+begin_src lisp
+     #@memoize
+     (defun change (coins total)
+       (cond ((< total 0) 0)
+             ((= total 0) 1)
+             ((null coins) 0)
+             (t (+ (change coins (- total (car coins)))
+                   (change (cdr coins) total)))))
+   #+end_src
+   
+   Roman numeral literals
+
+   #+begin_src lisp
+     #rCXXIX
+     ;; CL-USER> #rCXXIX
+     ;; 129
+   #+end_src
