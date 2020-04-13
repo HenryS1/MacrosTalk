@@ -195,7 +195,7 @@
 
 ** The macro
 
-   A helper macro
+   A helper
 
    #+begin_src lisp
      (defmacro expand-lambda (exp)
@@ -203,7 +203,7 @@
           `(lambda ,args ,exp)))
    #+end_src
 
-   The reader macro
+   The reader
 
    #+begin_src lisp
      (defun |#f-reader| (stream subchar arg)
@@ -219,7 +219,7 @@
    Function annotations
 
    #+begin_src lisp
-     #@memoize
+     @memoize
      (defun change (coins total)
        (cond ((< total 0) 0)
              ((= total 0) 1)

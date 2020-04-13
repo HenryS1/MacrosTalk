@@ -55,25 +55,13 @@
 
 (set-dispatch-macro-character #\# #\f #'|#f-reader|)
 
-(defun |#@-reader| (stream subchar arg)
-  (declare (ignore subchar arg))
+(defun |@-reader| (stream char)
+  (declare (ignore char))
   (let ((decorator (read stream))
         (fdef (read stream)))
     `(progn ,fdef (funcall #',decorator ',(cadr fdef)))))
 
-(defun memoize (fun)
-  (let ((old-fun (symbol-function fun))
-        (table (make-hash-table :test 'equal)))
-    (setf (symbol-function fun) 
-          (lambda (&rest args)
-            (multiple-value-bind (v found) (gethash args table)
-              (if found
-                  v
-                  (let ((res (apply old-fun args)))
-                    (setf (gethash args table) res)
-                    res)))))))
-
-(set-dispatch-macro-character #\# #\@ #'|#@-reader|)
+(set-macro-character #\@ #'|@-reader|)
 
 (defun numeral-value (numeral)
   (case numeral
