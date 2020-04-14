@@ -16,13 +16,13 @@
 (defmacro -?> (&rest exps)
   (reduce #'bind-subst exps))
 
-(defmacro aif (exp true-branch false-branch)
+(defmacro aif (exp true-branch &optional (false-branch nil))
   `(let ((it ,exp))
      (if it
          ,true-branch
          ,false-branch)))
 
-(defmacro sif (exp true-branch false-branch)
+(defmacro sif (exp true-branch &optional (false-branch nil))
   `(symbol-macrolet ((it ,exp))
      (if it
          ,true-branch
