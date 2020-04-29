@@ -29,7 +29,7 @@
   Threading passes arguments easily
 
   #+begin_src lisp
-    (<- val (fun1 a) (fun2 b) (fun3 c))
+    (-> val (fun1 a) (fun2 b) (fun3 c))
   #+end_src
 
   Anaphora refer to expressions concisely
@@ -57,7 +57,7 @@
   Clojure uses threading
   
   #+begin_src clojure
-  (<- (fun1 1) (fun2 2 3) (fun3 4 5))
+  (-> (fun1 1) (fun2 2 3) (fun3 4 5))
   #+end_src
 
 ** Add it
